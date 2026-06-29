@@ -759,7 +759,26 @@ class AssistantAdvancedChatApi(AssistantChatApi):
         if chunks:
             chunks = self._convert_chunk_array_to_search_results(request.json.get("chunks"))
 
-        # Get all knowledgebase IDs from all assistants
+        # When multiple assistants are present, route the query to the most relevant one
+        # before searching so we search only the relevant KB(s).
+        # JiraAgent/WebRCAAgent are left for llm.ask() to handle as before.
+        routed_disable_agentic = disable_agentic
+        if not disable_agentic and not chunks and len(assistants) > 1:
+            route = llm.identify_agent(question, assistants).strip()
+            log.info(
+                "AUDIT: router selected '%s' from %d assistants", route, len(assistants)
+            )
+            if route not in ("JiraAgent", "WebRCAAgent", "ChatAgent"):
+                matched = next((a for a in assistants if a.name == route), None)
+                if matched:
+                    log.info("AUDIT: Narrowing search to assistant '%s'", matched.name)
+                    assistants = [matched]
+            # routing is done — tell llm.ask() not to re-route unless it's a
+            # JiraAgent/WebRCAAgent query which llm.ask() handles internally
+            if route not in ("JiraAgent", "WebRCAAgent"):
+                routed_disable_agentic = True
+
+        # Get all knowledgebase IDs from (potentially narrowed) assistants
         all_knowledgebase_ids = set()
         for assistant in assistants:
             all_knowledgebase_ids.update(assistant.get_knowledgebase_ids())
@@ -775,7 +794,7 @@ class AssistantAdvancedChatApi(AssistantChatApi):
         log.info(
             "AUDIT: Calling llm.ask() with model=%s, disable_agentic=%s",
             model_name,
-            disable_agentic,
+            routed_disable_agentic,
         )
         llm_response, search_metadata = llm.ask(
             assistants,
@@ -785,7 +804,7 @@ class AssistantAdvancedChatApi(AssistantChatApi):
             interaction_id=interaction_id,
             prompt=system_prompt,
             model=model_name,
-            disable_agentic=disable_agentic,
+            disable_agentic=routed_disable_agentic,
             user_prompt=user_prompt,
         )
         log.info("AUDIT: llm.ask() completed")

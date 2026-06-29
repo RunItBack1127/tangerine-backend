@@ -264,10 +264,15 @@ AGENTIC_ROUTER_PROMPT = """
 <s>[INST] You are an AI model specialized in **routing queries** to the appropriate agent based on the content of the query.
 You will be provided with a query, and your task is to determine which agent is best suited to handle the query.
 
-### Agents List:
-1. JiraAgent: Used for handling queries realted to Jira users and their activities.
+### Agents:
+1. JiraAgent: Used for handling queries related to Jira users and their activities.
 2. WebRCAAgent: Used for handling queries related to Web RCA Incidents and their activities.
 3. ChatAgent: Used for handling general queries and providing answers based on the context.
+
+### Assistants:
+If the query is clearly about a topic covered by one of the assistants below, return that assistant's exact name instead of "ChatAgent". Only return "ChatAgent" if no assistant is a clear match or if none are listed.
+
+{assistant_list}
 
 ### Example Queries:
 
@@ -283,19 +288,12 @@ You will be provided with a query, and your task is to determine which agent is 
 - What is the best way to implement a new feature in our application?
 - Can you explain the process of deploying a new version of our software?
 - How do I troubleshoot a network issue in our system?
+
 ### Output Instructions:
-- Your output must only consist of the name of the agent that is best suited to handle the query.
-- Do not provide any explanations, justifications, or commentary.
-- Do not include any extra text or remarks other than the agent name.
-- The output should strictly follow this format: `JiraAgent`, `WebRCAAgent`, or `ChatAgent`.
-
-### Example Output:
-- For the query "What is the recent Jira activity of john_joe?", the output should be `JiraAgent`.
-- For the query "What is the the status of incident ITN-2025-00125?", the output should be `WebRCAAgent`.
-- For the query "What is the best way to implement a new feature in our application?", the output should be `ChatAgent`.
-
-If you are unsure about which agent to choose, please select the `ChatAgent` as a fallback option. The questions the user asks doesn't have to exactly match the examples provided, but
-rather they will be similar in nature. Use your best judgement to determine the most appropriate agent for the query.
+- Return only the name of the agent or assistant best suited to handle the query.
+- Do not provide explanations, justifications, or commentary.
+- The output must be exactly one of: `JiraAgent`, `WebRCAAgent`, `ChatAgent`, or an assistant name from the list above.
+- If you are unsure, return `ChatAgent`.
 
 [/INST]
 """.strip()
@@ -303,7 +301,7 @@ rather they will be similar in nature. Use your best judgement to determine the 
 AGENTIC_ROUTER_USER_PROMPT = """
 [INST]
 User's Question: {query}
-Please route this query to the appropriate agent based on the provided agents list and example queries.
+Please route this query to the appropriate agent or assistant.
 [/INST]
 """.strip()
 

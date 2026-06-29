@@ -169,12 +169,18 @@ def rerank(query, search_results: list["SearchResult"]):
     return "".join(llm_response)
 
 
-def identify_agent(query):
+def identify_agent(query, assistants=None):
     log.info("AUDIT: llm 'identify_agent' request")
+
+    if assistants and len(assistants) > 1:
+        assistant_list = "\n".join(f"- {a.name}: {a.description}" for a in assistants)
+    else:
+        assistant_list = "None"
+
     prompt = ChatPromptTemplate(
         [("system", cfg.AGENTIC_ROUTER_PROMPT), ("user", cfg.AGENTIC_ROUTER_USER_PROMPT)]
     )
-    prompt_params = {"query": query}
+    prompt_params = {"query": query, "assistant_list": assistant_list}
 
     llm_response = get_response(prompt, prompt_params)
     return "".join(llm_response)
@@ -205,7 +211,7 @@ def ask(
     log.info("AUDIT: disable_agentic=%s, checking if agentic workflow should run", disable_agentic)
     if not disable_agentic:
         log.info("AUDIT: Running agentic workflow - calling identify_agent()")
-        agent = identify_agent(question)
+        agent = identify_agent(question, assistants)
         log.info("AUDIT: identified agent: %s", agent)
         match agent.strip():
             case "JiraAgent":
